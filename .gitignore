@@ -1,0 +1,7 @@
+mex/*
+cpp/cmake*
+cpp/.idea
+.idea
+*.asv
+build 
+devel

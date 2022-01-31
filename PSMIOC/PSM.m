@@ -76,8 +76,8 @@ classdef PSM < handle
             obj.q = zeros(numDims,1);
             obj.qd = zeros(numDims,1);
             obj.V = V;
-            obj.numRadialBasis = 30;
-            obj.basisWidth = 10;
+            obj.numRadialBasis = 5;
+            obj.basisWidth = 2;
         end
 
         function save(obj,name)
@@ -175,7 +175,14 @@ classdef PSM < handle
                         val = val + m{i}(qPrime(1))*obj.parameters(i);
                     end
                 end
-                qdPrime(d) = -100*(qPrime(d) - val);
+                m = Direction(obj, d);
+                valD = 0;
+                for i = 1:length(obj.parameters)
+                    if ~isnumeric(m{i})
+                        valD = valD + m{i}(qPrime(1))*obj.parameters(i);
+                    end
+                end
+                qdPrime(d) = valD*qPrime(1) + -100*(qPrime(d) - val);
             end
             obj.qd = obj.V*qdPrime;
             %             obj.qd = obj.qd+qdd*dt;
@@ -561,7 +568,7 @@ classdef PSM < handle
                     tmp{i} = bofs{i}.H;
                 end
                 obj.H = getH(tmp, obj.W);
-                obj.H = obj.H + .00000001*eye(size(obj.H,1));
+                obj.H = obj.H + .0000000001*eye(size(obj.H,1));
                 for i = 1:length(bofs)
                     obj.f = obj.f+obj.W(i)*bofs{i}.f;
                 end
@@ -586,7 +593,7 @@ classdef PSM < handle
             %             obj.k = x(1:length(obj.k),1);
             %             obj.c = x((1:length(obj.c))+length(obj.k),1);
             %             obj.A = reshape(x(length(obj.k)+length(obj.c)+1:end,1), obj.numCuts-1, obj.numRadialBasis, obj.numDims-1);
-            obj.A = reshape(x, obj.numRadialBasis, obj.numDims);
+            obj.A = reshape(x, obj.numRadialBasis+1, obj.numDims);
         end
 
         function e = evaluate(obj,Plot)
@@ -735,7 +742,7 @@ classdef PSM < handle
         end
 
         function [A, functionsM] = preBasis(obj)
-            A = zeros(obj.numRadialBasis, obj.numDims);
+            A = zeros(obj.numRadialBasis+1, obj.numDims);
             %             k = zeros(obj.numCuts-1, 1);
             %             c = zeros(obj.numCuts-1, 1);
             functionsM = {};
@@ -788,18 +795,18 @@ classdef PSM < handle
 
         function g = CurvatureE(obj, t, demo, demod, demodd, dim)
 %             [demo, demod, demodd] = obj.preBasisE(t,demo);
-%             d = linspace(demo(1,1),demo(1,end),200);
-%             D = interp1(demo(1,:), demo(dim,:), d,'pchip','extrap');
-%             dD = d(2) - d(1);
-%             Dd = d_dt(D,dD);
-%             Ddd = d_dt(Dd,dD);
+            d = linspace(demo(1,1),demo(1,end),200);
+            D = interp1(demo(1,:), demo(dim,:), d,'pchip','extrap');
+            dD = d(2) - d(1);
+            Dd = d_dt(D,dD);
+            Ddd = d_dt(Dd,dD);
 
 % demo(dim,:)./demod(1,:)
 % f(q)
 % f'(q)*q' = demod(dim,:)./demod(1,:)
 % f''(q)*q'^2 + f'(q)*q'' 
 % DddPrime = 
-            g = @(qPrime1) interp1(demo(1,:), demodd(dim,:)./demod(1,:).^2, qPrime1,'nearest','extrap');
+            g = @(qPrime1) interp1(d, Ddd, qPrime1,'nearest','extrap');
             %             g = BasisFncE(obj.cp, g, cut);
         end
 
@@ -810,6 +817,8 @@ classdef PSM < handle
                 A(i, dim) = length(functionsM)+1;
                 functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasis(qPrime1, -X(i), obj.basisWidth);
             end
+             A(obj.numRadialBasis+1, dim) = length(functionsM)+1;
+            functionsM{A(obj.numRadialBasis+1, dim)} = @(qPrime1) 1 + 0*qPrime1;
             m = obj.postBasis(A,functionsM);
         end
 
@@ -819,6 +828,7 @@ classdef PSM < handle
             for i = 1 : obj.numRadialBasis
                 A(i, dim) = length(functionsM)+1;
                 functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasisD(qPrime1, -X(i), obj.basisWidth);
+%                     functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasis(qPrime1, -X(i), obj.basisWidth);
             end
             m = obj.postBasis(A,functionsM);
         end
@@ -829,6 +839,7 @@ classdef PSM < handle
             for i = 1 : obj.numRadialBasis
                 A(i, dim) = length(functionsM)+1;
                 functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasisDD(qPrime1, -X(i), obj.basisWidth);
+%                 functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasis(qPrime1, -X(i), obj.basisWidth);
             end
             m = obj.postBasis(A,functionsM);
         end
@@ -848,8 +859,12 @@ classdef PSM < handle
             X = linspace(obj.cp(1), obj.cp(end), obj.numRadialBasis);
             for i = 1 : obj.numRadialBasis
                 A(i, dim) = length(functionsM)+1;
-                functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasisI(qPrime1, obj.cp(1), -X(i), obj.basisWidth);
+%                 functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasisI(qPrime1, obj.cp(1), -X(i), obj.basisWidth);
+                  functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasis(qPrime1, -X(i), obj.basisWidth);
             end
+            A(obj.numRadialBasis+1, dim) = length(functionsM)+1;
+            functionsM{A(obj.numRadialBasis+1, dim)} = @(qPrime1) 1 + 0*qPrime1;
+            
             m = obj.postBasis(A,functionsM);
 
             %             mAll = {};

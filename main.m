@@ -75,6 +75,13 @@ for k = 1:2
                     demoName = ['demonstrations/' exercises{val} '_' side '_' num2str(length(demoFiles))]; 
                     save(demoName, 'D')
                     title([exercises{val} '_' side(1)])
+                    if val == 3  && strcmp(side,'R0') && contains(Qfiles{f}, 'Order2')
+                        keyboard
+                        figure(68)
+%                         robot.trajectoryBuilder(Q, 'dvdv');
+%                         keyboard
+                    end
+                    figure(1)
 %                 else
 %                     break
                 end

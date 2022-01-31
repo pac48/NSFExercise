@@ -239,7 +239,7 @@ classdef Robot < handle
                 end
             end
             disp([fileName ' in directory ' obj.directory ' is complete'] )
-bool = true;
+            bool = true;
         end
         function trajectoryPlayback(obj, Q)
             for i = 1:25:size(Q,1)

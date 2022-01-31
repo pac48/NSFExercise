@@ -43,20 +43,20 @@ for d = 1:length(demos)
     %     figure(102)
     %     plot(Dprime(1,:),.5*Ddprime(1,:).^2);hold on
         figure(102)
-        for s =1:4
-            subplot(2,2,s)
-            plot(t,D(s,:));hold on
+        for s =1:6
+            subplot(2,3,s)
+            plot(t, D(s,:));hold on
         end
         figure(103)
-        for s =1:4
-            subplot(2,2,s)
-            plot(Dprime(1,:), Dprime(s,:));hold on
-        end
+%         for s =1:4
+%             subplot(2,2,s)
+            plot(Dprime(1,:), Dprime');hold on
+%         end
         figure(104)
-        for s =1:4
-            subplot(2,2,s)
-            plot(Dprime(1,:), Ddprime(s,:)./Ddprime(1,:) );hold on
-        end
+%         for s =1:4
+%             subplot(2,2,s)
+            plot(Dprime(1,:), (Ddprime./Ddprime(1,:))' );hold on
+%         end
 
 %         why
 % figure
