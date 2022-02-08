@@ -18,8 +18,7 @@ classdef Robot < handle
         body2VertMap
         startInd
         directory
-        side
-        t
+        timerObj
         hSpinner
         hSlider
         fig
@@ -58,8 +57,10 @@ classdef Robot < handle
             [obj.robotPtr, obj.numJoints, obj.numBodies, obj.jointNames,...
                 obj.bodyNames,obj.numEndEffector, obj.jointMinimums, obj.jointMaximums] ...
                 = robot_mex(obj.INIT, [directory name]);
-            obj.jointMinimums(4) = obj.jointMinimums(4) +.7;
-            obj.jointMinimums(3) = obj.jointMinimums(3);
+%             obj.jointMinimums(4) = obj.jointMinimums(4) +.7;
+%             obj.jointMinimums(3) = obj.jointMinimums(3);
+obj.jointMinimums = obj.jointMinimums + .25;
+obj.jointMaximums = obj.jointMaximums - .25;
 
             if exist([directory 'obj.mat']) == 2
                 tmp = load([directory 'obj.mat']);
@@ -141,7 +142,47 @@ classdef Robot < handle
                 Rj = R{j+7};
                 JwL(:,j + obj.numJoints/2) = cross(Rj(:,3),P{5+7}-P{j+7});
             end
+        end
+        function Jall = getAllJacobians(obj)
+            % right side
+            jointOffset = 1;
+            Jall = cell(length(obj.bodyNames), 1);
+            for j = 1:(length(obj.bodyNames)+1)/2
+                J = zeros(3, obj.numJoints);
+                T = obj.getTransform(j);
+                Ptip = T(1:3, end);
+                for i = 1:(j-1-jointOffset)
+                    % right
+                    if contains(obj.bodyNames{i+jointOffset}, 'gripper')
+                        continue
+                    end
+                    T = obj.getTransform(i+jointOffset);
+                    R = T(1:3, 1:3);
+                    P = T(1:3, end);
+                    J(:, i) = cross(R(:, end) , Ptip - P);
+                end
+                Jall{j} = J;
+            end
+            % left side
+            jointOffset = 10;
+            for j = jointOffset+1:length(obj.bodyNames)
+                J = zeros(3, obj.numJoints);
+                T = obj.getTransform(j);
+                Ptip = T(1:3, end);
+                for i = 1:(j-1-jointOffset)
+                    % right
+                    if contains(obj.bodyNames{i+jointOffset}, 'gripper')
+                        continue
+                    end
+                    T = obj.getTransform(i+jointOffset);
+                    R = T(1:3, 1:3);
+                    P = T(1:3, end);
+                    J(:, i + length(obj.jointNames)/2) = cross(R(:, end) , Ptip - P);
+                end
+                Jall{j} = J;
+            end
 
+%            why
         end
         function plotObject(obj)
             % mainly used for debugging
@@ -196,11 +237,11 @@ classdef Robot < handle
         function playCallback(obj, Q, sld)
             if (strcmp(sld.Text,'Play'))
                 sld.Text = 'Pause';
-                obj.t = timer('StartDelay', 0, 'Period', .1, 'ExecutionMode', 'fixedRate', 'TimerFcn', @(x,y) obj.timerCallback(Q));
-                start(obj.t);
+                obj.timerObj = timer('StartDelay', 0, 'Period', .1, 'ExecutionMode', 'fixedRate', 'TimerFcn', @(x,y) obj.timerCallback(Q));
+                start(obj.timerObj);
             else
                 sld.Text = 'Play';
-                stop(obj.t);
+                stop(obj.timerObj);
             end
         end
         function complete = trajectoryBuilder(obj, Q, file)
@@ -242,7 +283,7 @@ classdef Robot < handle
             bool = true;
         end
         function trajectoryPlayback(obj, Q)
-            for i = 1:25:size(Q,1)
+            for i = 1:5:size(Q,1)
                 obj.setJoints(Q(i,:));
                 obj.plotObject();
                 pause(0.0001);

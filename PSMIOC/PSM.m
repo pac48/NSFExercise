@@ -10,7 +10,7 @@ classdef PSM < handle
         BOFs = {};
         BOFsE = {};
         parameters
-        W = [];
+        W
         typeMap
         H
         f
@@ -22,19 +22,18 @@ classdef PSM < handle
         beqBound
         AinBound
         binBound
-        bofCounter = 0
         qPrime1i
         qPrime1f
-        numDemos = 0
         q
         qd
         A
-        k
-        c
         V
+        bofCounter
         basisConfig
         KETarget
         velLimit = [];
+        nominalStart
+        numDemos
     end
     methods(Static)
         function psm = load(name)
@@ -49,6 +48,7 @@ classdef PSM < handle
             psm.V = V;
             psm.numRadialBasis = numRadialBasis;
             psm.basisWidth = basisWidth;
+            psm.nominalStart = nominalStart;
         end
         function mVal = radialBasisI(qPrime, qPrime0, x, width)
             %             https://en.wikipedia.org/wiki/Error_function
@@ -68,16 +68,18 @@ classdef PSM < handle
     methods
         function obj = PSM(numCuts,minD,maxD,numDims, V)
             obj.cp = linspace(minD,maxD,numCuts);
-%             obj.cp(1) = obj.cp(1)-1;
-%             obj.cp(end) = obj.cp(end)+1;
+            obj.cp(1) = obj.cp(1);
+            obj.cp(end) = obj.cp(end);
             obj.numCuts = numCuts;
             obj.numDims = numDims;
             obj.typeMap = containers.Map('KeyType','char','ValueType','any');
             obj.q = zeros(numDims,1);
             obj.qd = zeros(numDims,1);
             obj.V = V;
-            obj.numRadialBasis = 5;
-            obj.basisWidth = 2;
+            obj.numRadialBasis = 10;
+            obj.basisWidth = 8.5*(maxD - minD);
+            obj.bofCounter = 0;
+            obj.W = [];
         end
 
         function save(obj,name)
@@ -89,73 +91,15 @@ classdef PSM < handle
             V = obj.V;
             numRadialBasis = obj.numRadialBasis;
             basisWidth = obj.basisWidth;
-            save(name,'W','cp','basisConfig','numDims','numCuts','V','numRadialBasis', 'basisWidth')
+            nominalStart = obj.nominalStart;
+            save(name,'W','cp','basisConfig','numDims','numCuts','V','numRadialBasis', 'basisWidth', 'nominalStart')
         end
 
         function step(obj,dt)
             %             assert(0, 'this is broken')
             qPrime = inv(obj.V)*obj.q;
             qdPrime = inv(obj.V)*obj.qd;
-            %             cut = BasisObjFnc.getJ(obj.cp,qPrime(1));
-            %             ci = obj.c(cut);
-            %             ki = obj.k(cut);
-
-            %             qdhat1 = 0;
-            %             qdhat1Next = 0;
-            %             cut2 = BasisObjFnc.getJ(obj.cp,obj.qPrime1f(1));
-            %             if  cut+1 <= cut2
-            %                 for i = 2:cut+1
-            %                     qdhat1Next = qdhat1Next+(obj.cp(i)-obj.cp(i-1))*obj.c(i-1)+...
-            %                         .5*(obj.cp(i)^2-obj.cp(i-1)^2)*obj.k(i-1);
-            %                 end
-            %             else
-            %                 for i = 2:cut
-            %                     qdhat1Next = qdhat1Next+(obj.cp(i)-obj.cp(i-1))*obj.c(i-1)+...
-            %                         .5*(obj.cp(i)^2-obj.cp(i-1)^2)*obj.k(i-1);
-            %                 end
-            %                 qdhat1Next = qdhat1Next+(obj.qPrime1f(1)-obj.cp(cut))*ci+...
-            %                     .5*(obj.qPrime1f(1)^2-obj.cp(cut)^2)*ki;
-            %             end
-            %             qdhat1Next = sqrt(2*qdhat1Next);
-            %
-            %             for i = 2:cut
-            %                 qdhat1 = qdhat1+(obj.cp(i)-obj.cp(i-1))*obj.c(i-1)+...
-            %                     .5*(obj.cp(i)^2-obj.cp(i-1)^2)*obj.k(i-1);
-            %             end
-            %             qdhat1 = sqrt(2*(qdhat1+(qPrime(1)-obj.cp(cut))*ci+...
-            %                 .5*(qPrime(1)^2-obj.cp(cut)^2)*ki));
-            %             qdhat1 = real(qdhat1);
-            %             qdhat1 = qdPrime(1);
-            %             if  cut+1 <= cut2
-            %                 ci = 0*0.00001+(.5*(qdhat1Next^2-qdhat1^2)-.5*(obj.cp(cut+1)^2-qPrime(1)^2)*ki)/(obj.cp(cut+1)-qPrime(1));
-            %             else
-            %                 ci = 0*0.00001+(.5*(qdhat1Next^2-qdhat1^2)-.5*(obj.qPrime1f(1)^2-qPrime(1)^2)*ki)/(obj.qPrime1f(1)-qPrime(1));
-            %             end
-            %             qddhat1 = ki*qPrime(1)+ci;
-            %             qddhat = zeros(obj.numDims,1);
-            %             qddhat(1) = qddhat1;
-            %             d0 = zeros(obj.numDims,1);
-            %             d0(1) = qPrime(1);
-            %             d1 = zeros(obj.numDims,1);
-            %             d1(1) = 1;
-            %             dd1 = zeros(obj.numDims,1);
-            %             for i = 2:length(qddhat)
-            %                 coefs = obj.A(cut,:,i-1);
-            %                 for d = 1:length(coefs)
-            %                     d0(i) = d0(i)+coefs(d)*qPrime(1)^(d-1);
-            %                 end
-            %
-            %                 for d = 2:length(coefs)
-            %                     d1(i) = d1(i)+(d-1)*coefs(d)*qPrime(1)^(d-2);
-            %                 end
-            %
-            %                 for d = 3:length(coefs)
-            %                     dd1(i) = dd1(i)+(d-1)*(d-2)*coefs(d)*qPrime(1)^(d-3);
-            %                 end
-            %                 qddhat(i) = dd1(i)*qdhat1^2+d1(i)*qddhat1;
-            %             end
-            %             qdd = (obj.V*(qddhat+20*(d1*qdhat1-qdPrime) + 40*sqrt(20)*(d0-qPrime)));
-
+     
             for d = 1
                 m = KineticEnergy(obj, d);
                 val = 0;
@@ -182,7 +126,7 @@ classdef PSM < handle
                         valD = valD + m{i}(qPrime(1))*obj.parameters(i);
                     end
                 end
-                qdPrime(d) = valD*qPrime(1) + -100*(qPrime(d) - val);
+                qdPrime(d) = valD*qPrime(1) + -10*(qPrime(d) - val);
             end
             obj.qd = obj.V*qdPrime;
             %             obj.qd = obj.qd+qdd*dt;
@@ -236,7 +180,7 @@ classdef PSM < handle
             end
         end
 
-        function setupBoundaryConds(obj,boundaryConfig, Qi, Qdi, Qf, Qdf)
+        function setupBoundaryConds(obj, boundaryConfig, Qi, Qdi, Qf, Qdf)
             % set up PSM basis boundary condtions
             [QPrimei, QdPrimei,QPrimef,QdPrimef] = convertToPrime(obj,Qi, Qdi,Qf,Qdf);
             obj.qPrime1f = QPrimef{1,1};
@@ -248,6 +192,11 @@ classdef PSM < handle
             for d = 1:size(QPrimei,2)
                 qPrimei = QPrimei(:,d);
                 qPrimef = QPrimef(:,d);
+                if ~isempty(QPrimef{1, d})
+                    qPrimef1 = QPrimef{1, d};
+                else
+                    qPrimef1 = obj.cp(end);
+                end
                 qdPrimei = QdPrimei(:,d);
                 qdPrimef = QdPrimef(:,d);
 %                 g = @(qPrime) qPrime*0;
@@ -258,14 +207,14 @@ classdef PSM < handle
                     g = @(qPrime) qPrime*0+KEi;
                     obj.addBoundaryConstraint(m, g, qPrimei{1},d)
                 end
-                m = obj.KineticEnergy(1);
-                g = @(qPrime) qPrime*0;
-                obj.addBoundaryConstraintIn(m,g, qPrimef{1},d);
+%                 m = obj.KineticEnergy(1);
+%                 g = @(qPrime) qPrime*0;
+%                 obj.addBoundaryConstraintIn(m,g, qPrimef{1},d);
                 if ~isempty(qdPrimef{1}) && boundaryConfig.('endKE')
                     KEf = 0.5*qdPrimef{1}^2;
                     g = @(qPrime) qPrime*0+KEf;
                     m = obj.KineticEnergy(1);
-                    obj.addBoundaryConstraint(m, g, qPrimef{1},d)
+                    obj.addBoundaryConstraint(m, g, qPrimef1,d)
                 end
                 for dim = 2:obj.numDims
                     if ~isempty(qPrimei{dim}) && boundaryConfig.('startPos')
@@ -330,11 +279,16 @@ classdef PSM < handle
             %             obj.effortTarget = effortTarget;
             %             obj.KETarget = KETarget;
             [QPrimei, ~, QPrimef, ~] = obj.convertToPrime(Qi, [], Qf, []);
+            obj.nominalStart  = mean(reshape([Qi{:}], size(Qi,1),[]), 2);
             obj.basisConfig = basisConfig;
             fNames = fieldnames(basisConfig);
             for demoInd = 1:size(QPrimei,2)
                 qPrimei = QPrimei{1, demoInd};
-                qPrimef = QPrimef{1, demoInd};
+                if ~isempty(QPrimef{1, demoInd})
+                    qPrimef = QPrimef{1, demoInd};
+                else
+                    qPrimef = obj.cp(end);
+                end
                 for fi = 1:length(fNames)
                     fName = fNames{fi};
                     [dims, targets] = basisConfig.(fName);
@@ -525,7 +479,6 @@ classdef PSM < handle
             obj.beq = {};
             obj.Ain = {};
             obj.bin = {};
-            obj.c = {};
             for d = 1:size(obj.BOFs,2)
                 bofs = obj.BOFs(:,d);
                 Aeqd = [];
@@ -686,8 +639,8 @@ classdef PSM < handle
             gradT = -gradT;
             val = -val;
             
-%             val = val + 0*sum(w.^2); % normalization
-%             gradT = gradT + 0*2*w;
+            val = val + .00001*sum(w.^2); % normalization
+            gradT = gradT + .00001*2*w;
             
 
             val
@@ -835,7 +788,7 @@ classdef PSM < handle
 
         function m = Curvature(obj, dim)
             [A, functionsM] = obj.preBasis();
-            X = linspace(obj.cp(1), obj.cp(end), obj.numRadialBasis);
+            X = linspace(obj.cp(1), obj.cp(end), obj.numRadialBasis);;
             for i = 1 : obj.numRadialBasis
                 A(i, dim) = length(functionsM)+1;
                 functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasisDD(qPrime1, -X(i), obj.basisWidth);
@@ -846,7 +799,7 @@ classdef PSM < handle
 
         function m = Effort(obj, dim)
             [A, functionsM] = obj.preBasis();
-            X = linspace(obj.cp(1), obj.cp(end), obj.numRadialBasis);
+            XX = linspace(obj.cp(1), obj.cp(end), obj.numRadialBasis);
             for i = 1 : obj.numRadialBasis
                 A(i, dim) = length(functionsM)+1;
                 functionsM{A(i, dim)} = @(qPrime1) PSM.radialBasis(qPrime1, -X(i), obj.basisWidth);
@@ -883,26 +836,26 @@ classdef PSM < handle
             %             end
         end
 
-        function f = mCombine(obj, mAll,i,cut)
-            f = 0;
-            for j = 1:length(mAll)
-                mj = mAll{j}{1};
-                mji = mj{i};
-                if ~isnumeric(mji)
-                    if j < cut
-                        mji = @(qPrime1) qPrime1*0+mji(obj.cp(j+1)-0.000001).*(qPrime1 > obj.cp(cut) ).*(qPrime1 < obj.cp(cut+1) );
-                    end
-                    if isnumeric(f) && f == 0
-                        f = @(qPrime1) mji(qPrime1);
-                    else
-                        f = @(qPrime1) f(qPrime1)+mji(qPrime1);
-                    end
-                end
-            end
-        end
+%         function f = mCombine(obj, mAll,i,cut)
+%             f = 0;
+%             for j = 1:length(mAll)
+%                 mj = mAll{j}{1};
+%                 mji = mj{i};
+%                 if ~isnumeric(mji)
+%                     if j < cut
+%                         mji = @(qPrime1) qPrime1*0+mji(obj.cp(j+1)-0.000001).*(qPrime1 > obj.cp(cut) ).*(qPrime1 < obj.cp(cut+1) );
+%                     end
+%                     if isnumeric(f) && f == 0
+%                         f = @(qPrime1) mji(qPrime1);
+%                     else
+%                         f = @(qPrime1) f(qPrime1)+mji(qPrime1);
+%                     end
+%                 end
+%             end
+%         end
 
 
-        function plotBasisFcns(obj,qi,qf)
+        function plotBasisFcns(obj)
             types = flip(obj.typeMap.keys);
             for t = 1:length(types)
                 if contains(types{t},'expert')

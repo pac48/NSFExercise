@@ -34,7 +34,7 @@ class JoyStick:
     #   self.msg.axes = [self.joystick.get_axis(x) for x in range(self.joystick.get_numaxes()) ]
     # else:
     self.msg.buttons = [self.joystick.get_button(x) for x in range(self.joystick.get_numbuttons())]
-    self.msg.axes = [-int(100*self.joystick.get_axis(x))/100 for x in range(self.joystick.get_numaxes()) ]
+    self.msg.axes = [-int(20*self.joystick.get_axis(x))/20 for x in range(self.joystick.get_numaxes()) ]
 
     return self.msg
 

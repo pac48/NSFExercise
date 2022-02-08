@@ -1,50 +1,57 @@
 %% train models
-clear all
 close all
 numDims = 6;
-numDemos = 2;
-for e = 4 %[1 2 3 4]
-    [Demos, Demosd, Demosdd, T,Qi,Qf,Qdi,Qdf,minqPrime1,maxqPrime1,V] = getDemos(e, [1 3], numDims, numDemos);
-%     [Demos,Demosd, Demosdd, T,Qi,Qf,Qdi,Qdf] = chunkDemos(2, Demos, Demosd, Demosdd, T,Qi,Qf,Qdi,Qdf);
-%      [Demos,Demosd, Demosdd, T,Qi,Qf,Qdi,Qdf] = chunkDemos(2, Demos, Demosd, Demosdd, T,Qi,Qf,Qdi,Qdf);
+numDemos = 4;
+side = 'R0';
 
-    numCuts = 3;
-    posTarget = [-2 : .4: 2]; % values for position target functions
-    dirTarget = [-1 0 1]; % values for direction target functions
-    curvTarget = []; % values for curvature target functions
-    effortTarget = []; % values for effort target functions
-    KETarget = [0:.5: 5]; % values for kinetic energy target functions
-    psm = PSM(numCuts, minqPrime1, maxqPrime1,numDims, V);
+exercises = {'forwardRaise', 'lateralRaise', 'shoulderPress', 'internalExternalRotation'};
 
-    basisConfig = struct( ...
-        'posTarget', {2:numDims, posTarget},...
-        'dirTarget', {2:numDims, dirTarget},...
-        'curvTarget', {2:numDims, curvTarget},...
-        'effortTarget', {1, effortTarget},...
-        'KETarget', {1, KETarget});
+phases = {'up', 'down'};
+for e = 4
+    for p = 2:length(phases)
+        phase = phases{p};
+        [Demos, Demosd, Demosdd, T,Qi, Qf, Qdi, Qdf, minqPrime1, maxqPrime1,V] = getDemos(e, [1:numDemos], side, phase);
+%             [Demos,Demosd, Demosdd, T,Qi,Qf,Qdi,Qdf] = chunkDemos(2, Demos, Demosd, Demosdd, T,Qi,Qf,Qdi,Qdf);
+        %      [Demos,Demosd, Demosdd, T,Qi,Qf,Qdi,Qdf] = chunkDemos(2, Demos, Demosd, Demosdd, T,Qi,Qf,Qdi,Qdf);
+
+        numCuts = 3;
+        posTarget = [-2 : .2: 2]; % values for position target functions
+        dirTarget = [-1 :.5 :1]; % values for direction target functions
+        curvTarget = []; % values for curvature target functions
+        effortTarget = []; % values for effort target functions
+        KETarget = [0: .2: 2]; % values for kinetic energy target functions
+        psm = PSM(numCuts, minqPrime1, maxqPrime1, numDims, V);
+
+        basisConfig = struct( ...
+            'posTarget', {2:numDims, posTarget},...
+            'dirTarget', {2:numDims, dirTarget},...
+            'curvTarget', {2:numDims, curvTarget},...
+            'effortTarget', {1, effortTarget},...
+            'KETarget', {1, KETarget});
 
 
-    psm.setupBasisFncs(basisConfig, Qi, Qf);
+        psm.setupBasisFncs(basisConfig, Qi, Qf);
 
-boundaryConfig = struct( ...
-                    'startPos', true,...
-                    'endPos', false,...
-                    'startDir', false,...
-                    'endDir', false,...
-                    'startKE', true, ...
-                    'endKE', false);
+        boundaryConfig = struct( ...
+            'startPos', false,...
+            'endPos', false,...
+            'startDir', false,...
+            'endDir', false,...
+            'startKE', false, ...
+            'endKE', false);
 
-    psm.setupBoundaryConds(boundaryConfig, Qi, Qdi,Qf,Qdf)
-    psm.setupBasisFncsE(basisConfig, T, Demos, Demosd, Demosdd)
-    psm.buildOptimize();
-    psm.W = 1*ones(length(psm.W),1);
-    psm.optimize();
-    psm.optimizePSM();
-    close all
-    qPrimei = psm.cp(1);
-    qPrimef = psm.cp(end);
-    psm.plotBasisFcns(qPrimei,qPrimef);
-    psm.save(['PSMIOC/models/psm_' num2str(e)]);
+        psm.setupBoundaryConds(boundaryConfig, Qi, Qdi,Qf,Qdf)
+        psm.setupBasisFncsE(basisConfig, T, Demos, Demosd, Demosdd)
+        psm.buildOptimize();
+        psm.W = 1*ones(length(psm.W),1);
+        psm.optimize();
+        psm.optimizePSM();
+        close all
+        %     qPrimei = psm.cp(1);
+        %     qPrimef = psm.cp(end);
+        psm.plotBasisFcns();
+        psm.save(['PSMIOC/models/psm_' exercises{e} '_' phase '_' side]);
+    end
 end
 %% Experiment 1: exercise reproduction
 close all
@@ -52,34 +59,34 @@ for bool = [0]
     % bool = 0: without velocity limit
     % bool = 0: with velocity limit
     for e = 4 % forward raise
-        psm = PSM.load(['PSMIOC/models/psm_' num2str(e)]);
-        [Demos, Demosd, Demosdd,T,Qi,Qf,Qdi,Qdf,minqPrime1,maxqPrime1,V] = getDemos(e, [1 3],psm.numDims, numDemos);
+        psm = PSM.load(['PSMIOC/models/psm_'  exercises{e} '_' phase '_' side]);
+        [Demos, Demosd, Demosdd,T,Qi,Qf,Qdi,Qdf,minqPrime1,maxqPrime1,V] = getDemos(e, [1:numDemos], side, phase);
         figure(66+bool)
         for d2 = 1:length(Demos)
             D = Demos{d2};
             t = T{d2};
             for d = 1:psm.numDims
-                subplot(2,4,d)
+                subplot(2,3,d)
                 plot(t ,D(d,:),'Color','k','LineWidth',1);hold on
             end
         end
-        for d3 = [1 3]
-            psm = PSM.load(['PSMIOC/models/psm_' num2str(e)]);
+        for d3 = 1:numDemos
+            psm = PSM.load(['PSMIOC/models/psm_'  exercises{e} '_' phase '_' side]);
             if bool
                 psm.velLimit = 1;
             end
             W = psm.W;
-            [Demos, Demosd, Demosdd,T,Qi,Qf,Qdi,Qdf,minqPrime1,maxqPrime1,V] = getDemos(e, d3, psm.numDims, 1);
+            [Demos, Demosd, Demosdd,T,Qi,Qf,Qdi,Qdf,minqPrime1,maxqPrime1,V] = getDemos(e, d3, side, phase);
             psm.setupBasisFncsE(psm.basisConfig, T, Demos, Demosd, Demosdd)
-%             Qi{1} = Qi{1}+.1;
-%             Qi{1+3} = Qi{1+3}+.1;
+            %             Qi{1} = Qi{1}+.1;
+            %             Qi{1+3} = Qi{1+3}+.1;
             qpi = Qi;
             qdi = Qdi;
             qpf = Qf;
             qdf = Qdf;
             Qf = qpf;
             Qdf = qdf;
-            psm.setupBasisFncs(psm.basisConfig, Qi,Qf)
+            psm.setupBasisFncs(psm.basisConfig, Qi, Qf)
             psm.W = W;
             for i = 0
                 val = inv(psm.V)*[Qi{:}]';
@@ -90,15 +97,15 @@ for bool = [0]
                 for j = 1:length(Qi)
                     qpi{j} = val(j);
                 end
-               boundaryConfig = struct( ...
-                    'startPos', true,...
+                boundaryConfig = struct( ...
+                    'startPos', false,...
                     'endPos', false,...
                     'startDir', false,...
                     'endDir', false,...
                     'startKE', true, ...
-                    'endKE', false);
+                    'endKE', true);
                 psm.setupBoundaryConds(boundaryConfig, qpi, qdi,qpf,qdf)
-  
+
                 for j = 1:length(qpi)
                     psm.q(j) = qpi{j};
                     psm.qd(j) = qdi{j};
@@ -119,7 +126,7 @@ for bool = [0]
                 end
                 figure(66+bool)
                 for d = 1:psm.numDims
-                    subplot(2,4,d)
+                    subplot(2,3,d)
                     plot((0:length(q(:,d))-1)*dt ,q(:,d),'Color','b','LineWidth',2);hold on
                     axis tight
                 end

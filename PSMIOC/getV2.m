@@ -7,6 +7,9 @@ end
 % Qd = 
 
 [~, ~, V] = svd(Q');
+% Uall = V;
+% return
+
 
 S = (Q*Q')./size(Q,1)^2;
 
@@ -49,10 +52,10 @@ end
 % end
 
 
-bestU =  mean(QEnd - QStart)';
+% bestU =  mean(QEnd - QStart)';
+%  bestU = bestU./norm(bestU);
 
- bestU = bestU./norm(bestU);
-%  bestU = [0 0 0 0 0 1]';
+ bestU = [0 0 0 0 0 -1]';
 
 obj = @(u)  -(u'*S*u);% + 100*sum(((QEnd*u - QStart*u) - 1).^2);
 
