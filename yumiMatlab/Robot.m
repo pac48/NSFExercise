@@ -32,6 +32,7 @@ classdef Robot < handle
         numEndEffector
         jointMinimums
         jointMaximums
+        name
         home = [(46.0 / 180.0) * 3.14;
             (-121.0 / 180.0) * 3.14;
             (-87.0 / 180.0) * 3.14;
@@ -51,14 +52,16 @@ classdef Robot < handle
 
     methods
         function obj = Robot(name)
+            % Constructor for robot object. Creates a robot object pointed 
+            % to by robotPtr. This method also caches values for efficiency. 
+            
             assert(strcmp(name, 'yumi'), 'name must be a char array of a supported robot. Supported robots: yumi')
+            obj.name = name;
             p = which('Robot.m');
             directory = p(1:max(find(p=='\',9999)));  
             [obj.robotPtr, obj.numJoints, obj.numBodies, obj.jointNames,...
                 obj.bodyNames,obj.numEndEffector, obj.jointMinimums, obj.jointMaximums] ...
                 = robot_mex(obj.INIT, [directory name]);
-%             obj.jointMinimums(4) = obj.jointMinimums(4) +.7;
-%             obj.jointMinimums(3) = obj.jointMinimums(3);
 obj.jointMinimums = obj.jointMinimums + .25;
 obj.jointMaximums = obj.jointMaximums - .25;
 
@@ -87,27 +90,49 @@ obj.jointMaximums = obj.jointMaximums - .25;
 
         end
         function delete(obj)
+            % Deletes the allocated robot object. This is called
+            % automatically when obj is deleted.
+
             robot_mex(obj.DESTROY, obj.robotPtr);
         end
         function setJoints(obj, jointAngles)
+            % Sets the joint angles for the robot. 
+
             jointAngles = reshape(jointAngles, [], 1);
             jointAngles = min(jointAngles, obj.jointMaximums);
             jointAngles = max(jointAngles, obj.jointMinimums);
             robot_mex(obj.SETJOINTS, obj.robotPtr, jointAngles);
         end
         function jointAgnles = getJoints(obj)
+            % Gets the current joint angles of the robot
+
             jointAgnles = robot_mex(obj.GETJOINTS, obj.robotPtr);
         end
         function J = getJacobian(obj)
+            % Gets the jacobian for the end effectors. J has 6 rows for 
+            % each end effector and one column for each joint.
+            
             J = robot_mex(obj.GETJACOB, obj.robotPtr);
         end
-        function T = getTransform(obj, index)
-            T = robot_mex(obj.GETTRANS, obj.robotPtr, index);
+        function T = getTransform(obj, i)
+            % Gets the tranform from the ith joint to global cooordinates. 
+            % The ordeer of the indexing order is the same as the order of 
+            % obj.jointNames 
+
+            T = robot_mex(obj.GETTRANS, obj.robotPtr, i);
         end
-        function operationalPosition = getOperationalPosition(obj, index)
-            operationalPosition = robot_mex(obj.GETOPPOS, obj.robotPtr, index);
+        function operationalPosition = getOperationalPosition(obj, i)
+            % Gets the tranform from the ith end effector to global coordinates  
+
+            operationalPosition = robot_mex(obj.GETOPPOS, obj.robotPtr, i);
         end
         function [JeR, JwR, JeL, JwL] = getElbowWristJacobians(obj)
+             % Gets the jacobians for the left and right elbor and wrist 
+             % joints. JeR, JwR, JeL, JwL all have 3 rows one column for 
+             % each joint.
+
+            assert(strcmp(obj.name, 'yumi'), 'nMethod for yumi robot only');
+
             R = cell(14, 1);
             P = cell(14, 1);
             for i = 1:7
@@ -144,6 +169,10 @@ obj.jointMaximums = obj.jointMaximums - .25;
             end
         end
         function Jall = getAllJacobians(obj)
+             % Gets the jacobians for all joints. Jall is a cell array of
+             % jacobians for each joint. The sizes are 3 rows and one column
+             % each joint.
+
             % right side
             jointOffset = 1;
             Jall = cell(length(obj.bodyNames), 1);
@@ -182,10 +211,10 @@ obj.jointMaximums = obj.jointMaximums - .25;
                 Jall{j} = J;
             end
 
-%            why
         end
         function plotObject(obj)
-            % mainly used for debugging
+            % Display the 3D robot configuration. (mainly used for debugging)
+            
             vNew = [];
             color = [];
             lighDir = [-1; -.5; -1];
@@ -211,6 +240,9 @@ obj.jointMaximums = obj.jointMaximums - .25;
             colormap gray
             shading interp
         end
+
+        %% everything below this point is related to trajectory parsing and needs to be refactored to another class
+
         function indexCallback(obj, Q, sld, sld2)
             sld2.Value = sld.Value;
             numFrames = size(Q, 1);
