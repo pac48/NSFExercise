@@ -1,8 +1,6 @@
 set(TARGET robot_mex)
 
-if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
-SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
-endif()
+SET(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(RL REQUIRED)
 
@@ -32,6 +30,6 @@ endif(WIN32)
 #        CUDA_SEPERABLE_COMPILATION ON
 #LINKER_LANGUAGE CUDA)
 
-install(TARGETS ${TARGET} DESTINATION D:/NSFExercise/mex)
+install(TARGETS ${TARGET} DESTINATION ${CMAKE_SOURCE_DIR}/../mex)
 
 message(Done!!! ${TARGET})

@@ -1,7 +1,7 @@
 project(NSF)
-cmake_minimum_required(VERSION 3.19.3)
+cmake_minimum_required(VERSION 3.18.2)
 
-
+SET(CMAKE_BUILD_TYPE Release)
 SET(MATLAB_ROOT ${MATLAB_ROOT} CACHE FILEPATH "directory")
 SET(ZED_CUDA_VERSION 11.5)
 

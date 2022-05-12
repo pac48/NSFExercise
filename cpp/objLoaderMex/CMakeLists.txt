@@ -1,8 +1,7 @@
 set(TARGET object_loader)
 
-if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
-SET(CMAKE_BUILD_TYPE "RelWithDebInfo")
-endif()
+
+SET(CMAKE_BUILD_TYPE Release)
 
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -30,6 +29,6 @@ endif(WIN32)
 #        CUDA_SEPERABLE_COMPILATION ON
 #LINKER_LANGUAGE CUDA)
 
-install(TARGETS ${TARGET} DESTINATION D:/NSFExercise/mex)
+install(TARGETS ${TARGET} DESTINATION ${CMAKE_SOURCE_DIR}/../mex)
 
 message(Done!!! ${TARGET})
